@@ -2,6 +2,8 @@
 
 Dự án cộng đồng dịch tên và mô tả skill của Brown Dust II PC sang tiếng Việt.
 
+# Synaeeeeeeeeee from BDX is 90% this project.
+
 ## Chọn nền tảng
 
 - [Hướng dẫn Windows](README_WINDOWS.md)
@@ -39,14 +41,14 @@ translations/SkillTextTable_EN.raw.json
 
 Bản làm việc hoặc bản chưa duyệt. Game không đọc file này.
 
-## Trạng thái nền tảng
+## Hệ điều hành
 
 ```text
 Linux / Proton: đã thử nghiệm
-Windows: cần cộng đồng tiếp tục kiểm tra
-BrownDustX bắt buộc: không
+Windows: Chưa có chuột bạch
+BrownDustX bắt buộc: Có
 ```
 
 ## Lưu ý
 
-Đây là dự án fan-made, không chính thức. Không đưa lên repository file game, DLL của game, font, save, log hoặc dữ liệu tài khoản.
+Đây là dự án fan-made, không chính thức. Không đưa lên repository file game, DLL của game, font, save, log hoặc dữ liệu tài khoản. Khong phải có mod cheat ở đây.
