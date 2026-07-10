@@ -51,18 +51,7 @@ translations/SkillTextTable_EN.json
 |
 ```
 
-## Cài đặt cho người chơi
-
-Bản phát hành sẽ chứa cấu trúc:
-
-```text
-BepInEx/
-  plugins/BD2VietnameseSkillText/BD2VietnameseSkillText.dll
-  config/BD2Vietnamese/SkillTextTable_EN.json
-```
-
-Giải nén vào thư mục chứa `Brown Dust II.exe`.
-
 ## Tuyên bố
 
-Đây là dự án fan-made, không chính thức. Tên game, nội dung gốc và tài sản liên quan thuộc về chủ sở hữu tương ứng. Không tải lên repository các DLL, font, hình ảnh, save hoặc tài sản lấy từ game.
+Đây là dự án fan-made, không chính thức. Tên game, nội dung gốc và tài sản liên quan thuộc về chủ sở hữu tương ứng. Không tải lên repository các DLL, font, hình ảnh, save hoặc tài sản lấy từ game. Đây cũng không phải là công cụ để gian lận game cũng như tài nguyên game.
+
