@@ -1,6 +1,6 @@
 # Hướng dẫn Windows
 
-## 1. Người chơi chỉ muốn cài bản dịch
+## 1. Mod dịch
 
 Không cần cài .NET SDK và không cần tải source code.
 
@@ -36,7 +36,7 @@ BepInEx\
 
 Nếu game đang mở và chỉ thay JSON, nhấn `F6`, sau đó đóng và mở lại cửa sổ skill.
 
-## 2. Người dùng Windows muốn góp bản dịch
+## 2. Góp bản dịch
 
 Cách dễ nhất là dùng GitHub Desktop.
 
@@ -71,7 +71,7 @@ Write-Host "JSON hợp lệ"
 
 Không cần build plugin nếu chỉ góp bản dịch.
 
-## 3. Người dùng Windows muốn build plugin
+## 3. Build plugin
 
 Yêu cầu:
 
