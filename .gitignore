@@ -1,0 +1,47 @@
+# Build output
+**/bin/
+**/obj/
+*.dll
+*.pdb
+*.mdb
+
+# Game and BepInEx files
+Brown Dust II.exe
+GameAssembly.dll
+UnityPlayer.dll
+winhttp.dll
+doorstop_config.ini
+BepInEx/core/
+BepInEx/cache/
+BepInEx/LogOutput.log
+BepInEx/config/*.cfg
+
+# Local release output
+release/
+dist/
+*.zip
+*.sha256
+
+# Logs, saves, account data
+*.log
+*.save
+*.savefile
+BackupsFile/
+UserData/
+AppData/
+
+# IDE
+.vscode/
+.idea/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Do not redistribute font files
+*.ttf
+*.otf
+*.woff
+*.woff2

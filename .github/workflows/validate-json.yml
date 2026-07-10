@@ -1,0 +1,44 @@
+name: Validate translation JSON
+
+on:
+  push:
+    paths:
+      - "translations/**/*.json"
+      - ".github/workflows/validate-json.yml"
+  pull_request:
+    paths:
+      - "translations/**/*.json"
+      - ".github/workflows/validate-json.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON files
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          files = sorted(Path("translations").glob("*.json"))
+          if not files:
+              raise SystemExit("No translation JSON files found.")
+
+          for path in files:
+              with path.open(encoding="utf-8") as file:
+                  data = json.load(file)
+
+              if not isinstance(data, dict):
+                  raise SystemExit(f"{path}: root must be an object")
+
+              for key, value in data.items():
+                  if not isinstance(key, str) or not isinstance(value, str):
+                      raise SystemExit(
+                          f"{path}: every key and value must be a string"
+                      )
+
+              print(f"OK: {path} ({len(data)} entries)")
+          PY

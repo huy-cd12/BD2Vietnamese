@@ -1,0 +1,458 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+GAME_DEFAULT="$HOME/.steam/debian-installation/steamapps/compatdata/3667336694/pfx/drive_c/Neowiz/Browndust2/Browndust2_10000001"
+GAME="${GAME:-$GAME_DEFAULT}"
+
+EXPORT_ROOT="$GAME/BepInEx/exports/BD2SkillText"
+CONFIG_DIR="$GAME/BepInEx/config/BD2Vietnamese"
+
+ACTIVE_FILE="$CONFIG_DIR/SkillTextTable_EN.json"
+RAW_FILE="$CONFIG_DIR/SkillTextTable_EN.raw.json"
+
+LOG_FILE="$GAME/BepInEx/LogOutput.log"
+BACKUP_DIR="$HOME/BD2_translation_backup"
+
+die() {
+    echo "LỖI: $*" >&2
+    exit 1
+}
+
+need_game() {
+    [[ -d "$GAME" ]] || die "Không thấy thư mục game: $GAME"
+}
+
+latest_capture() {
+    need_game
+
+    local latest
+    latest="$(
+        find "$EXPORT_ROOT" \
+            -maxdepth 1 \
+            -type d \
+            -name "skill_capture_*" \
+            -printf '%T@ %p\n' 2>/dev/null |
+        sort -nr |
+        head -n 1 |
+        cut -d' ' -f2-
+    )"
+
+    [[ -n "$latest" ]] || die "Chưa có capture nào. Trong game: F11 → F9 → mở skill → F9."
+    printf '%s\n' "$latest"
+}
+
+show_help() {
+    cat <<'EOF'
+QUY TRÌNH BD2
+
+Trong game:
+  F11                   xóa dữ liệu capture trong RAM
+  F9                    bật/tắt capture
+  F6                    nạp lại bản dịch
+
+Trong Terminal:
+  bd2clear               xóa toàn bộ thư mục capture cũ
+  bd2pull                lấy ID/text mới nhất vào file RAW
+  bd2raw                 xem file RAW
+  bd2editraw             sửa/dịch file RAW
+  bd2push                gộp RAW vào file game đang dùng
+  bd2active              xem file game đang dùng
+  bd2edit                sửa trực tiếp file game đang dùng
+  bd2check               kiểm tra cả RAW và file game
+  bd2status              xem trạng thái, đường dẫn và số lượng ID
+  bd2backup              sao lưu file game đang dùng
+  bd2path                hiện capture mới nhất
+  bd2open                mở thư mục bản dịch
+  bd2exports             mở thư mục capture
+  bd2log                 xem log plugin
+
+HAI FILE SONG SONG
+
+  SkillTextTable_EN.json
+    → file game đang đọc và hiển thị.
+
+  SkillTextTable_EN.raw.json
+    → file làm việc/copy song song.
+    → game KHÔNG đọc file này.
+
+QUY TRÌNH NGẮN
+
+  1. bd2clear
+  2. Trong game: F11 → F9 → mở mọi cấp skill → F9
+  3. bd2pull
+  4. bd2editraw
+  5. bd2check
+  6. bd2push
+  7. Trong game: F6 → đóng/mở lại skill
+EOF
+}
+
+cmd_clear() {
+    need_game
+    mkdir -p "$EXPORT_ROOT"
+
+    local count
+    count="$(
+        find "$EXPORT_ROOT" \
+            -maxdepth 1 \
+            -type d \
+            -name "skill_capture_*" |
+        wc -l
+    )"
+
+    find "$EXPORT_ROOT" \
+        -maxdepth 1 \
+        -type d \
+        -name "skill_capture_*" \
+        -exec rm -rf {} +
+
+    echo "Đã xóa $count thư mục capture cũ."
+    echo "Không xóa file dịch đang dùng và không xóa file RAW."
+    echo "Trong game vẫn cần nhấn F11 để xóa dữ liệu đang nằm trong RAM."
+}
+
+cmd_pull() {
+    need_game
+    mkdir -p "$CONFIG_DIR" "$BACKUP_DIR"
+
+    local latest
+    latest="$(latest_capture)"
+
+    [[ -f "$latest/all_entries.json" ]] ||
+        die "Không thấy all_entries.json trong capture mới nhất."
+
+    if [[ -f "$RAW_FILE" ]]; then
+        cp -a \
+            "$RAW_FILE" \
+            "$BACKUP_DIR/SkillTextTable_EN.raw_$(date +%Y%m%d_%H%M%S).json"
+    fi
+
+    python3 - "$latest/all_entries.json" "$RAW_FILE" <<'PY'
+import json
+import os
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+source_path = Path(sys.argv[1])
+output_path = Path(sys.argv[2])
+
+with source_path.open(encoding="utf-8") as file:
+    rows = json.load(file)
+
+def parse_arguments(summary: str) -> dict[int, str]:
+    values: dict[int, str] = {}
+
+    for part in summary.split(" | "):
+        left, separator, value = part.rpartition("=")
+
+        if not separator:
+            continue
+
+        index_text = left.split(":", 1)[0].strip()
+
+        if index_text.isdigit():
+            values[int(index_text)] = value
+
+    return values
+
+records: dict[str, dict[str, list[str]]] = defaultdict(
+    lambda: defaultdict(list)
+)
+
+for row in rows:
+    arguments = parse_arguments(row.get("arguments", ""))
+
+    if arguments.get(4, "") != "SkillTextTable_EN":
+        continue
+
+    row_id = str(arguments.get(2, row.get("id", ""))).strip()
+    field = arguments.get(3, "").strip() or "text"
+    text = row.get("text", "")
+
+    if not row_id.isdigit() or not isinstance(text, str) or not text:
+        continue
+
+    if text not in records[row_id][field]:
+        records[row_id][field].append(text)
+
+result: dict[str, str] = {}
+
+def sort_key(value: str):
+    base, _, suffix = value.partition(":")
+    return (int(base) if base.isdigit() else 10**30, suffix)
+
+for row_id in sorted(records, key=lambda value: int(value)):
+    fields = records[row_id]
+
+    if "text" in fields:
+        result[row_id] = fields["text"][0]
+    elif "nodeAddText" in fields:
+        result[row_id] = fields["nodeAddText"][0]
+    else:
+        first_field = sorted(fields)[0]
+        result[row_id] = fields[first_field][0]
+
+    for field, values in sorted(fields.items()):
+        if field == "text":
+            continue
+
+        value = values[0]
+
+        if field == "nodeAddText" and value == result[row_id]:
+            continue
+
+        result[f"{row_id}:{field}"] = value
+
+ordered = {
+    key: result[key]
+    for key in sorted(result, key=sort_key)
+}
+
+temporary_path = output_path.with_suffix(output_path.suffix + ".tmp")
+temporary_path.write_text(
+    json.dumps(ordered, ensure_ascii=False, indent=4) + "\n",
+    encoding="utf-8"
+)
+os.replace(temporary_path, output_path)
+
+print(f"Đã lấy {len(ordered)} khóa vào RAW:")
+print(output_path)
+PY
+
+    echo
+    echo "File game đang dùng vẫn giữ nguyên:"
+    echo "$ACTIVE_FILE"
+}
+
+cmd_show_raw() {
+    need_game
+    [[ -f "$RAW_FILE" ]] || die "Chưa có file RAW. Chạy: bd2pull"
+    python3 -m json.tool "$RAW_FILE"
+}
+
+cmd_show_active() {
+    need_game
+    [[ -f "$ACTIVE_FILE" ]] || die "Chưa có file dịch đang dùng."
+    python3 -m json.tool "$ACTIVE_FILE"
+}
+
+cmd_edit_raw() {
+    need_game
+    mkdir -p "$CONFIG_DIR"
+    [[ -f "$RAW_FILE" ]] || printf '{}\n' > "$RAW_FILE"
+    nano "$RAW_FILE"
+}
+
+cmd_edit_active() {
+    need_game
+    mkdir -p "$CONFIG_DIR"
+    [[ -f "$ACTIVE_FILE" ]] || printf '{}\n' > "$ACTIVE_FILE"
+    nano "$ACTIVE_FILE"
+}
+
+validate_json_file() {
+    local file="$1"
+    local label="$2"
+
+    if [[ ! -f "$file" ]]; then
+        echo "$label: chưa có"
+        return
+    fi
+
+    python3 - "$file" "$label" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+label = sys.argv[2]
+
+with path.open(encoding="utf-8") as file:
+    data = json.load(file)
+
+if not isinstance(data, dict):
+    raise SystemExit(f"{label}: phải là JSON object")
+
+for key, value in data.items():
+    if not isinstance(key, str) or not isinstance(value, str):
+        raise SystemExit(
+            f"{label}: mọi ID và nội dung phải là chuỗi"
+        )
+
+print(f"{label}: JSON hợp lệ, {len(data)} khóa")
+PY
+}
+
+cmd_check() {
+    need_game
+    validate_json_file "$RAW_FILE" "RAW"
+    validate_json_file "$ACTIVE_FILE" "ACTIVE"
+}
+
+cmd_push() {
+    need_game
+    mkdir -p "$CONFIG_DIR" "$BACKUP_DIR"
+
+    [[ -f "$RAW_FILE" ]] || die "Chưa có RAW. Chạy: bd2pull"
+
+    validate_json_file "$RAW_FILE" "RAW"
+
+    if [[ -f "$ACTIVE_FILE" ]]; then
+        local backup
+        backup="$BACKUP_DIR/SkillTextTable_EN_$(date +%Y%m%d_%H%M%S).json"
+        cp -a "$ACTIVE_FILE" "$backup"
+        echo "Đã sao lưu ACTIVE:"
+        echo "$backup"
+    fi
+
+    python3 - "$RAW_FILE" "$ACTIVE_FILE" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+raw_path = Path(sys.argv[1])
+active_path = Path(sys.argv[2])
+
+with raw_path.open(encoding="utf-8") as file:
+    raw = json.load(file)
+
+if active_path.exists():
+    with active_path.open(encoding="utf-8") as file:
+        active = json.load(file)
+else:
+    active = {}
+
+if not isinstance(raw, dict) or not isinstance(active, dict):
+    raise SystemExit("RAW và ACTIVE đều phải là JSON object.")
+
+active.update(raw)
+
+def sort_key(value: str):
+    base, _, suffix = value.partition(":")
+    return (int(base) if base.isdigit() else 10**30, suffix)
+
+ordered = {
+    key: active[key]
+    for key in sorted(active, key=sort_key)
+}
+
+temporary_path = active_path.with_suffix(active_path.suffix + ".tmp")
+temporary_path.write_text(
+    json.dumps(ordered, ensure_ascii=False, indent=4) + "\n",
+    encoding="utf-8"
+)
+os.replace(temporary_path, active_path)
+
+print(f"Đã gộp {len(raw)} khóa RAW vào ACTIVE.")
+print(f"Tổng ACTIVE: {len(ordered)} khóa.")
+print(active_path)
+PY
+
+    echo
+    echo "RAW vẫn được giữ song song và game không đọc nó:"
+    echo "$RAW_FILE"
+    echo
+    echo "Quay lại game: nhấn F6, đóng và mở lại trang skill."
+}
+
+cmd_status() {
+    need_game
+
+    echo "GAME:"
+    echo "$GAME"
+    echo
+
+    echo "ACTIVE — game đang đọc:"
+    echo "$ACTIVE_FILE"
+
+    if [[ -f "$ACTIVE_FILE" ]]; then
+        python3 - "$ACTIVE_FILE" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as file:
+    print("Số khóa:", len(json.load(file)))
+PY
+    else
+        echo "Chưa có"
+    fi
+
+    echo
+    echo "RAW — game không đọc:"
+    echo "$RAW_FILE"
+
+    if [[ -f "$RAW_FILE" ]]; then
+        python3 - "$RAW_FILE" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as file:
+    print("Số khóa:", len(json.load(file)))
+PY
+    else
+        echo "Chưa có"
+    fi
+
+    echo
+    echo "CAPTURE MỚI NHẤT:"
+
+    if latest_capture 2>/dev/null; then
+        :
+    else
+        echo "Chưa có"
+    fi
+}
+
+cmd_backup() {
+    need_game
+    [[ -f "$ACTIVE_FILE" ]] || die "Chưa có ACTIVE để sao lưu."
+
+    mkdir -p "$BACKUP_DIR"
+
+    local target
+    target="$BACKUP_DIR/SkillTextTable_EN_$(date +%Y%m%d_%H%M%S).json"
+
+    cp -a "$ACTIVE_FILE" "$target"
+
+    echo "Đã sao lưu:"
+    echo "$target"
+}
+
+cmd_open() {
+    need_game
+    mkdir -p "$CONFIG_DIR"
+    xdg-open "$CONFIG_DIR" >/dev/null 2>&1 &
+}
+
+cmd_exports() {
+    need_game
+    mkdir -p "$EXPORT_ROOT"
+    xdg-open "$EXPORT_ROOT" >/dev/null 2>&1 &
+}
+
+cmd_log() {
+    need_game
+    [[ -f "$LOG_FILE" ]] || die "Không thấy LogOutput.log"
+
+    grep -iE \
+        "BD2 Vietnamese Skill Text|BD2 Skill Text Exporter|Loaded.*Vietnamese|Patched methods|translation|replacement failed|could not patch|error|exception" \
+        "$LOG_FILE" |
+    tail -n 120
+}
+
+case "${1:-help}" in
+    clear) cmd_clear ;;
+    pull) cmd_pull ;;
+    raw) cmd_show_raw ;;
+    active) cmd_show_active ;;
+    editraw) cmd_edit_raw ;;
+    edit) cmd_edit_active ;;
+    check) cmd_check ;;
+    push) cmd_push ;;
+    status) cmd_status ;;
+    backup) cmd_backup ;;
+    path) latest_capture ;;
+    open) cmd_open ;;
+    exports) cmd_exports ;;
+    log) cmd_log ;;
+    help|-h|--help) show_help ;;
+    *) die "Lệnh không hợp lệ. Dùng: bd2 help" ;;
+esac

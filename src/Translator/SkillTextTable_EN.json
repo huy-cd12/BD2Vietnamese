@@ -1,0 +1,14 @@
+{
+    "10124": "Cường hóa",
+    "10139": "Chuỗi",
+    "10144": "SP",
+    "10160": "HP tối đa",
+    "60059": "Cường hóa +15%",
+    "10038015": "Lời Nguyện Song Cực (Cao nhất)",
+    "10038025": "Đây là Sự Bảo Hộ của Oni! (Cao nhất)",
+    "10038034": "Hoa Hồng☆Cường Hóa Linh Hồn (Cao)",
+    "20038015": "Hồi <#ffa024>[3[ SP</color> cho đồng minh. |Tăng <#ffa024>ATK</color> của đồng minh thêm <#ffa024><6<%</color> trong <#ffa024><5< lượt</color>. |Tăng <#ffa024>Tỷ lệ Chí mạng</color> của đồng minh thêm <#ffa024>{6{%</color> trong <#ffa024>{5{ lượt</color>.",
+    "20038025": "Ban hiệu ứng Cường hóa cho đồng minh trong <#ffa024><5< lượt</color>, tăng <#ffa024>sát thương gây ra</color> lên <#ffa024>kẻ địch có từ 10 Chuỗi trở lên</color> thêm <#ffa024><6<%</color>. |<#91dc69>Hồi máu</color> cho từng đồng minh bằng <#ffa024>{6{%</color> <#ffa024>HP tối đa</color> của chính họ vào cuối mỗi lượt trong <#ffa024>{5{ lượt</color>.",
+    "20038034": "Tăng <#ffa024>Tỷ lệ Chí mạng</color> của bản thân thêm <#ffa024>{6{%</color> trong <#ffa024>{5{ lượt</color>. Tấn công kẻ địch <#ffa024>5 lần</color>, mỗi đòn gây <#ddc37a><1<</color> <#ddc37a>Sát thương Vật lý</color> bằng <#ffa024><6<%</color> <#ffa024>HP tối đa</color> của bản thân.",
+    "20038034:nodeAddText": "Tăng <#ffa024>Tỷ lệ Chí mạng</color> của bản thân thêm <#ffa024>{6{%</color> trong <#ffa024>{5{ lượt</color>. |Tấn công kẻ địch <#ffa024>5 lần</color>, mỗi đòn gây <#ddc37a><1<</color> <#ddc37a>Sát thương Vật lý</color> bằng <#ffa024><6<%</color> <#ffa024>HP tối đa</color> của bản thân."
+}
