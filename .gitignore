@@ -45,3 +45,5 @@ Thumbs.db
 *.otf
 *.woff
 *.woff2
+
+.platform-split-backup-*/

@@ -1,57 +1,52 @@
-# Brown Dust II Vietnamese Translation
+# Brown Dust II Vietnamese
 
 Dự án cộng đồng dịch tên và mô tả skill của Brown Dust II PC sang tiếng Việt.
 
-# Synaeeeeeee from BDX is 90% of this project.
+## Chọn nền tảng
 
-## Thành phần
+- [Hướng dẫn Windows](README_WINDOWS.md)
+- [Hướng dẫn Linux / Proton](README_LINUX.md)
+- [Quy trình dịch skill](docs/TRANSLATION_WORKFLOW.md)
+- [Hướng dẫn đóng góp](CONTRIBUTING.md)
+
+## Cấu trúc chính
 
 ```text
-src/Translator/       Plugin hiển thị bản dịch trong game
-src/Exporter/         Plugin lấy ID và text skill
-src/FontFix/          Plugin thử nghiệm sửa font tiếng Việt
-tools/Shortcuts/      Bộ lệnh hỗ trợ quy trình dịch
+src/
+  Translator/     Plugin hiển thị bản dịch
+  Exporter/       Plugin lấy ID và text skill
+  FontFix/        Plugin thử nghiệm sửa font tiếng Việt
+
 translations/
-  SkillTextTable_EN.json       Bản đã duyệt, dùng để phát hành
-  SkillTextTable_EN.raw.json   Bản làm việc/chưa duyệt
+  SkillTextTable_EN.json
+  SkillTextTable_EN.raw.json
+
+tools/
+  Shortcuts/      Lệnh hỗ trợ quy trình dịch trên Linux
 ```
 
-## Quy trình đóng góp
-
-1. Fork repository.
-2. Tạo branch riêng.
-3. Chỉnh `translations/SkillTextTable_EN.raw.json`.
-4. Giữ nguyên ID, token động và thẻ màu.
-5. Kiểm tra JSON.
-6. Mở Pull Request.
-
-```bash
-python3 -m json.tool translations/SkillTextTable_EN.raw.json >/dev/null
-```
-
-Sau khi bản dịch được kiểm tra trong game, nội dung được gộp vào:
+## Hai file bản dịch
 
 ```text
 translations/SkillTextTable_EN.json
 ```
 
-## Token không được sửa
+Bản đã duyệt, dùng để phát hành và để game đọc.
 
 ```text
-<#ffa024>
-<#91dc69>
-<#ddc37a>
-</color>
-[3[
-<6<
-<5<
-{6{
-{5{
-<1<
-|
+translations/SkillTextTable_EN.raw.json
 ```
 
-## Tuyên bố
+Bản làm việc hoặc bản chưa duyệt. Game không đọc file này.
 
-Đây là dự án fan-made, không chính thức. Tên game, nội dung gốc và tài sản liên quan thuộc về chủ sở hữu tương ứng. Không tải lên repository các DLL, font, hình ảnh, save hoặc tài sản lấy từ game. Đây cũng không phải là công cụ để gian lận game cũng như tài nguyên game.
+## Trạng thái nền tảng
 
+```text
+Linux / Proton: đã thử nghiệm
+Windows: cần cộng đồng tiếp tục kiểm tra
+BrownDustX bắt buộc: không
+```
+
+## Lưu ý
+
+Đây là dự án fan-made, không chính thức. Không đưa lên repository file game, DLL của game, font, save, log hoặc dữ liệu tài khoản.

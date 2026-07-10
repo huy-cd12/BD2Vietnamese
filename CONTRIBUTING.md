@@ -1,35 +1,39 @@
 # Hướng dẫn đóng góp
 
-## Quy tắc
+## Người dịch trên Windows
+
+1. Fork repository.
+2. Clone bằng GitHub Desktop.
+3. Tạo branch riêng.
+4. Sửa `translations\SkillTextTable_EN.raw.json`.
+5. Kiểm tra JSON bằng PowerShell.
+6. Commit, push và mở Pull Request.
+
+## Người dịch trên Linux
+
+1. Fork hoặc clone repository.
+2. Tạo branch riêng.
+3. Dùng exporter và shortcut để lấy ID.
+4. Sửa `translations/SkillTextTable_EN.raw.json`.
+5. Kiểm tra JSON.
+6. Commit, push và mở Pull Request.
+
+## Quy tắc chung
 
 - Không đổi ID.
 - Không xóa token động hoặc thẻ màu.
 - Không thay số động bằng số cố định.
-- Giữ câu dịch ngắn để tránh tràn giao diện.
+- Không commit DLL hoặc tài sản của game.
+- Không commit font, save, log hoặc dữ liệu tài khoản.
 - Mỗi Pull Request nên tập trung vào một nhân vật hoặc một nhóm costume.
-- Ghi rõ đã kiểm tra cấp skill nào: `+0` đến `+5`.
-- Không commit file game, log, save, font hoặc thông tin tài khoản.
+- Ghi rõ cấp đã kiểm tra: `+0` đến `+5`.
+- Ghi rõ đã thử trong game hay chưa.
 
-## Quy trình Git
+## Commit mẫu
 
 ```bash
 git checkout -b translate/liberta
-# sửa file
-python3 -m json.tool translations/SkillTextTable_EN.raw.json >/dev/null
 git add translations/
 git commit -m "Translate Liberta skill levels"
 git push -u origin translate/liberta
-```
-
-Sau đó mở Pull Request vào branch `main`.
-
-## Khi cùng một ID có nhiều field
-
-Có thể dùng:
-
-```json
-{
-  "20038034": "Bản text",
-  "20038034:nodeAddText": "Bản nodeAddText"
-}
 ```
