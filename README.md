@@ -10,6 +10,7 @@ Dự án cộng đồng dịch tên và mô tả skill của Brown Dust II PC sa
 - [Hướng dẫn Linux / Proton](README_LINUX.md)
 - [Quy trình dịch skill](docs/TRANSLATION_WORKFLOW.md)
 - [Hướng dẫn đóng góp](CONTRIBUTING.md)
+- Link tải Bepinex: https://mega.nz/file/8v1xVLbR#p2gQyRnllcK96JA8hIGIFn94zXuML_CI_qTW1_QyQns
 
 ## Cấu trúc chính
 
@@ -46,7 +47,7 @@ Bản làm việc hoặc bản chưa duyệt. Game không đọc file này.
 ```text
 Linux / Proton: đã thử nghiệm
 Windows: Chưa có chuột bạch
-BrownDustX bắt buộc: Có
+BrownDustX bắt buộc: không
 ```
 
 ## Lưu ý
