@@ -2,6 +2,8 @@
 
 Dự án cộng đồng dịch tên và mô tả skill của Brown Dust II PC sang tiếng Việt.
 
+# Synaeeeeeee from BDX is 90% of this project.
+
 ## Thành phần
 
 ```text
