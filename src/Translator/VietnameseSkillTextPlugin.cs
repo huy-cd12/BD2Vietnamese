@@ -1,4 +1,5 @@
 using BepInEx;
+using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using System;
@@ -16,42 +17,95 @@ namespace BD2VietnameseSkillText
     {
         public const string PluginGuid = "local.bd2.vietnamese.skilltext";
         public const string PluginName = "BD2 Vietnamese Skill Text";
-        public const string PluginVersion = "0.1.1";
+        public const string PluginVersion = "0.2.0";
 
         private static readonly object TranslationLock = new object();
+
         private static Dictionary<string, string> _translations =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            new Dictionary<string, string>(
+                StringComparer.OrdinalIgnoreCase);
+
+        private static readonly HashSet<string> AppliedKeys =
+            new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
+
+        private static readonly HashSet<string> MissingKeys =
+            new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
 
         private static ManualLogSource? _log;
+        private static bool _logMissingTranslations = true;
+
         private Harmony? _harmony;
+        private ConfigEntry<bool>? _autoReload;
+        private ConfigEntry<float>? _pollInterval;
+        private ConfigEntry<bool>? _logMissingConfig;
+
         private string _translationPath = string.Empty;
+        private float _nextPollAt;
+        private bool _knownFileExists;
+        private DateTime _knownWriteTimeUtc;
+        private long _knownFileLength;
 
         private void Awake()
         {
             _log = Logger;
+
+            _autoReload = Config.Bind(
+                "Reload",
+                "Auto reload JSON",
+                true,
+                "Automatically reload SkillTextTable_EN.json after it changes.");
+
+            _pollInterval = Config.Bind(
+                "Reload",
+                "Poll interval seconds",
+                0.50f,
+                "How often the translation file is checked for changes.");
+
+            _logMissingConfig = Config.Bind(
+                "Diagnostics",
+                "Log missing IDs",
+                true,
+                "Log each requested SkillText ID that has no translation once per session.");
+
+            _logMissingTranslations =
+                _logMissingConfig.Value;
+
             _translationPath = Path.Combine(
                 Paths.ConfigPath,
                 "BD2Vietnamese",
-                "SkillTextTable_EN.json"
-            );
+                "SkillTextTable_EN.json");
 
-            Directory.CreateDirectory(Path.GetDirectoryName(_translationPath)!);
-            LoadTranslations();
+            string? directory =
+                Path.GetDirectoryName(_translationPath);
+
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            LoadTranslations("startup");
 
             _harmony = new Harmony(PluginGuid);
-            int patchedCount = PatchRawDataManager(_harmony);
+            int patchedCount =
+                PatchRawDataManager(_harmony);
 
             Logger.LogMessage(
-                PluginName + " loaded. Patched methods: " + patchedCount +
-                ". F6=reload translation."
-            );
-            Logger.LogMessage("Translation file: " + _translationPath);
+                PluginName + " " + PluginVersion +
+                " loaded. Patched methods: " +
+                patchedCount.ToString(
+                    CultureInfo.InvariantCulture) +
+                ". F6=reload.");
+
+            Logger.LogMessage(
+                "Translation file: " +
+                _translationPath);
 
             if (patchedCount == 0)
             {
                 Logger.LogWarning(
-                    "No matching RawDataManager.GetIntroValueString method was found."
-                );
+                    "No matching RawDataManager.GetIntroValueString method was found.");
             }
         }
 
@@ -59,26 +113,102 @@ namespace BD2VietnameseSkillText
         {
             if (Input.GetKeyDown(KeyCode.F6))
             {
-                LoadTranslations();
+                AppliedKeys.Clear();
+                MissingKeys.Clear();
+                LoadTranslations("F6");
+            }
+
+            if (_autoReload?.Value != true)
+            {
+                return;
+            }
+
+            if (Time.unscaledTime < _nextPollAt)
+            {
+                return;
+            }
+
+            float interval = Mathf.Max(
+                0.10f,
+                _pollInterval?.Value ?? 0.50f);
+
+            _nextPollAt =
+                Time.unscaledTime + interval;
+
+            PollTranslationFile();
+        }
+
+        private void PollTranslationFile()
+        {
+            bool exists = File.Exists(
+                _translationPath);
+
+            if (!exists)
+            {
+                if (_knownFileExists)
+                {
+                    LoadTranslations(
+                        "file deleted");
+                }
+
+                return;
+            }
+
+            FileInfo info =
+                new FileInfo(_translationPath);
+
+            DateTime writeTime =
+                info.LastWriteTimeUtc;
+
+            long length =
+                info.Length;
+
+            if (!_knownFileExists ||
+                writeTime != _knownWriteTimeUtc ||
+                length != _knownFileLength)
+            {
+                LoadTranslations(
+                    "file changed");
             }
         }
 
-        private void LoadTranslations()
+        private void LoadTranslations(
+            string reason)
         {
             try
             {
-                if (!File.Exists(_translationPath))
+                if (!File.Exists(
+                        _translationPath))
                 {
+                    lock (TranslationLock)
+                    {
+                        _translations =
+                            new Dictionary<string, string>(
+                                StringComparer.OrdinalIgnoreCase);
+                    }
+
+                    _knownFileExists = false;
+                    _knownWriteTimeUtc =
+                        DateTime.MinValue;
+                    _knownFileLength = 0;
+
                     Logger.LogWarning(
-                        "Translation file does not exist: " + _translationPath
-                    );
+                        "Skill translation file is missing; translations disabled. Reason: " +
+                        reason + ". Path: " +
+                        _translationPath);
+
                     return;
                 }
 
-                string json = File.ReadAllText(
-                    _translationPath,
-                    new UTF8Encoding(false, true)
-                );
+                FileInfo info =
+                    new FileInfo(_translationPath);
+
+                string json =
+                    File.ReadAllText(
+                        _translationPath,
+                        new UTF8Encoding(
+                            false,
+                            true));
 
                 Dictionary<string, string> loaded =
                     FlatStringJsonParser.Parse(json);
@@ -88,39 +218,81 @@ namespace BD2VietnameseSkillText
                     _translations = loaded;
                 }
 
+                _knownFileExists = true;
+                _knownWriteTimeUtc =
+                    info.LastWriteTimeUtc;
+                _knownFileLength =
+                    info.Length;
+
+                _logMissingTranslations =
+                    _logMissingConfig?.Value ?? true;
+
                 Logger.LogMessage(
-                    "Loaded " + loaded.Count.ToString(CultureInfo.InvariantCulture) +
-                    " Vietnamese skill translations."
-                );
+                    "Loaded " +
+                    loaded.Count.ToString(
+                        CultureInfo.InvariantCulture) +
+                    " Vietnamese skill translations. Reason: " +
+                    reason + ".");
             }
             catch (Exception exception)
             {
+                try
+                {
+                    FileInfo info =
+                        new FileInfo(_translationPath);
+
+                    _knownFileExists =
+                        info.Exists;
+
+                    if (info.Exists)
+                    {
+                        _knownWriteTimeUtc =
+                            info.LastWriteTimeUtc;
+                        _knownFileLength =
+                            info.Length;
+                    }
+                }
+                catch
+                {
+                    // Ignore metadata errors.
+                }
+
                 Logger.LogError(
-                    "Could not load translation JSON: " + exception
-                );
+                    "Could not load skill translation JSON. Existing in-memory translations were kept. " +
+                    exception);
             }
         }
 
-        private static int PatchRawDataManager(Harmony harmony)
+        private static int PatchRawDataManager(
+            Harmony harmony)
         {
-            MethodInfo postfix = typeof(VietnameseSkillTextPlugin).GetMethod(
-                nameof(GetIntroValueStringPostfix),
-                BindingFlags.Static | BindingFlags.NonPublic
-            )!;
+            MethodInfo postfix =
+                typeof(VietnameseSkillTextPlugin)
+                    .GetMethod(
+                        nameof(
+                            GetIntroValueStringPostfix),
+                        BindingFlags.Static |
+                        BindingFlags.NonPublic)!;
 
-            HarmonyMethod postfixPatch = new HarmonyMethod(postfix);
-            HashSet<MethodBase> patched = new HashSet<MethodBase>();
+            HarmonyMethod postfixPatch =
+                new HarmonyMethod(postfix);
+
+            HashSet<MethodBase> patched =
+                new HashSet<MethodBase>();
+
             int count = 0;
 
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (Assembly assembly in
+                AppDomain.CurrentDomain
+                    .GetAssemblies())
             {
-                foreach (Type type in GetTypesSafely(assembly))
+                foreach (Type type in
+                    GetTypesSafely(assembly))
                 {
                     if (!string.Equals(
-                        type.Name,
-                        "RawDataManager",
-                        StringComparison.Ordinal
-                    ))
+                            type.Name,
+                            "RawDataManager",
+                            StringComparison.Ordinal))
                     {
                         continue;
                     }
@@ -131,31 +303,35 @@ namespace BD2VietnameseSkillText
                         BindingFlags.Static |
                         BindingFlags.Instance;
 
-                    foreach (MethodInfo method in type.GetMethods(flags))
+                    foreach (MethodInfo method in
+                        type.GetMethods(flags))
                     {
                         if (!string.Equals(
-                            method.Name,
-                            "GetIntroValueString",
-                            StringComparison.Ordinal
-                        ))
+                                method.Name,
+                                "GetIntroValueString",
+                                StringComparison.Ordinal))
                         {
                             continue;
                         }
 
-                        if (method.ReturnType != typeof(string))
+                        if (method.ReturnType !=
+                            typeof(string))
                         {
                             continue;
                         }
 
-                        ParameterInfo[] parameters = method.GetParameters();
+                        ParameterInfo[] parameters =
+                            method.GetParameters();
 
                         if (parameters.Length < 5)
                         {
                             continue;
                         }
 
-                        if (parameters[2].ParameterType != typeof(int) ||
-                            parameters[4].ParameterType != typeof(string))
+                        if (parameters[2].ParameterType !=
+                                typeof(int) ||
+                            parameters[4].ParameterType !=
+                                typeof(string))
                         {
                             continue;
                         }
@@ -167,19 +343,24 @@ namespace BD2VietnameseSkillText
 
                         try
                         {
-                            harmony.Patch(method, postfix: postfixPatch);
+                            harmony.Patch(
+                                method,
+                                postfix: postfixPatch);
+
                             count++;
 
                             _log?.LogInfo(
-                                "Patched: " + type.FullName + "." + method.Name
-                            );
+                                "Patched: " +
+                                type.FullName + "." +
+                                method.Name);
                         }
                         catch (Exception exception)
                         {
                             _log?.LogWarning(
-                                "Could not patch " + type.FullName + "." +
-                                method.Name + ": " + exception.Message
-                            );
+                                "Could not patch " +
+                                type.FullName + "." +
+                                method.Name + ": " +
+                                exception.Message);
                         }
                     }
                 }
@@ -188,17 +369,23 @@ namespace BD2VietnameseSkillText
             return count;
         }
 
-        private static IEnumerable<Type> GetTypesSafely(Assembly assembly)
+        private static IEnumerable<Type>
+            GetTypesSafely(
+                Assembly assembly)
         {
             try
             {
                 return assembly.GetTypes();
             }
-            catch (ReflectionTypeLoadException exception)
+            catch (
+                ReflectionTypeLoadException
+                    exception)
             {
-                List<Type> types = new List<Type>();
+                List<Type> types =
+                    new List<Type>();
 
-                foreach (Type? type in exception.Types)
+                foreach (Type? type in
+                    exception.Types)
                 {
                     if (type != null)
                     {
@@ -214,68 +401,111 @@ namespace BD2VietnameseSkillText
             }
         }
 
-        private static void GetIntroValueStringPostfix(
-            object[] __args,
-            ref string __result
-        )
+        private static void
+            GetIntroValueStringPostfix(
+                object[] __args,
+                ref string __result)
         {
             try
             {
-                if (__args == null || __args.Length < 5)
+                if (__args == null ||
+                    __args.Length < 5)
                 {
                     return;
                 }
 
-                string table = Convert.ToString(
-                    __args[4],
-                    CultureInfo.InvariantCulture
-                ) ?? string.Empty;
+                string table =
+                    Convert.ToString(
+                        __args[4],
+                        CultureInfo.InvariantCulture)
+                    ?? string.Empty;
 
                 if (!table.StartsWith(
-                    "SkillTextTable_",
-                    StringComparison.OrdinalIgnoreCase
-                ))
+                        "SkillTextTable_",
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     return;
                 }
 
-                string id = Convert.ToString(
-                    __args[2],
-                    CultureInfo.InvariantCulture
-                ) ?? string.Empty;
+                string id =
+                    Convert.ToString(
+                        __args[2],
+                        CultureInfo.InvariantCulture)
+                    ?? string.Empty;
 
-                string field = Convert.ToString(
-                    __args[3],
-                    CultureInfo.InvariantCulture
-                ) ?? string.Empty;
+                string field =
+                    Convert.ToString(
+                        __args[3],
+                        CultureInfo.InvariantCulture)
+                    ?? string.Empty;
 
                 if (id.Length == 0)
                 {
                     return;
                 }
 
-                string translated;
-                string fieldSpecificKey = id + ":" + field;
+                string translated = string.Empty;
+                string fieldSpecificKey =
+                    id + ":" + field;
+
+                string? matchedKey = null;
 
                 lock (TranslationLock)
                 {
-                    if (!_translations.TryGetValue(
+                    if (_translations.TryGetValue(
                             fieldSpecificKey,
-                            out translated!
-                        ) &&
-                        !_translations.TryGetValue(id, out translated!))
+                            out translated!))
                     {
-                        return;
+                        matchedKey =
+                            fieldSpecificKey;
+                    }
+                    else if (
+                        _translations.TryGetValue(
+                            id,
+                            out translated!))
+                    {
+                        matchedKey = id;
                     }
                 }
 
+                if (matchedKey == null)
+                {
+                    if (_logMissingTranslations)
+                    {
+                        string missingKey =
+                            table + "|" + id +
+                            "|" + field;
+
+                        if (MissingKeys.Add(
+                                missingKey))
+                        {
+                            _log?.LogMessage(
+                                "Missing skill translation: " +
+                                "ID=" + id +
+                                ", field=" + field +
+                                ", table=" + table);
+                        }
+                    }
+
+                    return;
+                }
+
                 __result = translated;
+
+                if (AppliedKeys.Add(
+                        matchedKey))
+                {
+                    _log?.LogMessage(
+                        "Applied skill translation: " +
+                        "key=" + matchedKey +
+                        ", table=" + table);
+                }
             }
             catch (Exception exception)
             {
                 _log?.LogWarning(
-                    "Translation replacement failed: " + exception.Message
-                );
+                    "Skill translation replacement failed: " +
+                    exception.Message);
             }
         }
 
@@ -464,5 +694,6 @@ namespace BD2VietnameseSkillText
                 );
             }
         }
+
     }
 }

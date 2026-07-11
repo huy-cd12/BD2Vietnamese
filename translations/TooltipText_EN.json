@@ -1,0 +1,18 @@
+{
+  "Max HP": {
+    "title": "Max HP",
+    "info": "Đây là lượng HP tối đa mà mục tiêu có thể sở hữu.\n\nKhi sử dụng skill dựa trên Max HP, nếu Max HP được tính vượt quá 50.000 thì giá trị sẽ bị giới hạn ở 50.000."
+  },
+  "Stack Application": {
+    "title": "Stack Application",
+    "info": "Các skill Stack Application trở nên hiệu quả hơn khi số lượng stack tăng lên.\n\nVí dụ, nếu mỗi stack tăng 10% ATK thì 3 stack sẽ tăng tổng cộng 30% ATK.\n\nHiệu lực của Stack Application được xác định theo giá trị được áp dụng gần nhất. Nếu đang có 5 stack với hiệu ứng 10% và nhận thêm 3 stack với hiệu ứng 20%, thì toàn bộ 8 stack sẽ được tính theo giá trị 20%."
+  },
+  "Transform": {
+    "title": "Transform",
+    "info": "Thay đổi hình dạng của mục tiêu và nhận thêm hiệu ứng.\nKhi đang Transform, lượng SP tiêu hao và thời gian hồi chiêu của skill giảm xuống 0.\nCác hiệu ứng được thêm thông qua Burst vẫn được duy trì trong thời gian Transform.\n\nTransform không thể bị hủy bởi các hiệu ứng xóa buff."
+  },
+  "Vulnerability": {
+    "title": "Vulnerability",
+    "info": "Vulnerability làm tăng sát thương phải nhận.\n\nVí dụ, với 25% Vulnerability, khi nhận 100 sát thương thì sát thương thực tế sẽ là 125 do ảnh hưởng của Vulnerability."
+  }
+}

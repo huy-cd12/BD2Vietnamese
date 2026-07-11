@@ -37,22 +37,26 @@ find_one() {
 }
 
 BEPINEX_DLL="$(find_one "BepInEx.dll")"
-HARMONY_DLL="$(find_one "0Harmony.dll")"
 UNITY_ENGINE_DLL="$(find_one "UnityEngine.dll")"
 CORE_MODULE_DLL="$(find_one "UnityEngine.CoreModule.dll")"
 INPUT_LEGACY_DLL="$(find_one "UnityEngine.InputLegacyModule.dll")"
+UI_DLL="$(find_one "UnityEngine.UI.dll")"
+TMP_DLL="$(find_one "Unity.TextMeshPro.dll")"
+NEWTONSOFT_DLL="$(find_one "Newtonsoft.Json.dll")"
 
 dotnet build \
-    "$PROJECT_DIR/BD2VietnameseSkillText.csproj" \
+    "$PROJECT_DIR/BD2VietnameseTooltip.csproj" \
     -c Release \
     -p:BepInExPath="$BEPINEX_DLL" \
-    -p:HarmonyPath="$HARMONY_DLL" \
     -p:UnityEnginePath="$UNITY_ENGINE_DLL" \
     -p:CoreModulePath="$CORE_MODULE_DLL" \
-    -p:InputLegacyPath="$INPUT_LEGACY_DLL"
+    -p:InputLegacyPath="$INPUT_LEGACY_DLL" \
+    -p:UIPath="$UI_DLL" \
+    -p:TMPPath="$TMP_DLL" \
+    -p:NewtonsoftJsonPath="$NEWTONSOFT_DLL"
 
-DLL="$PROJECT_DIR/bin/Release/netstandard2.1/BD2VietnameseSkillText.dll"
-PLUGIN_DIR="$GAME/BepInEx/plugins/BD2VietnameseSkillText"
+DLL="$PROJECT_DIR/bin/Release/netstandard2.1/BD2VietnameseTooltip.dll"
+PLUGIN_DIR="$GAME/BepInEx/plugins/BD2VietnameseTooltip"
 
 [[ -f "$DLL" ]] || {
     echo "ERROR: build completed but DLL was not found:"
@@ -63,7 +67,7 @@ PLUGIN_DIR="$GAME/BepInEx/plugins/BD2VietnameseSkillText"
 mkdir -p "$PLUGIN_DIR"
 install -m 0644 \
     "$DLL" \
-    "$PLUGIN_DIR/BD2VietnameseSkillText.dll"
+    "$PLUGIN_DIR/BD2VietnameseTooltip.dll"
 
-echo "Installed skill plugin:"
-echo "$PLUGIN_DIR/BD2VietnameseSkillText.dll"
+echo "Installed tooltip plugin:"
+echo "$PLUGIN_DIR/BD2VietnameseTooltip.dll"
