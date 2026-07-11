@@ -3,11 +3,11 @@ name: Validate translation JSON
 on:
   push:
     paths:
-      - "translations/**/*.json"
+      - "translations/**.json"
       - ".github/workflows/validate-json.yml"
   pull_request:
     paths:
-      - "translations/**/*.json"
+      - "translations/**.json"
       - ".github/workflows/validate-json.yml"
 
 jobs:
@@ -15,30 +15,91 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Validate JSON files
+        shell: bash
         run: |
           python3 - <<'PY'
           import json
+          import sys
           from pathlib import Path
 
+          errors = []
           files = sorted(Path("translations").glob("*.json"))
+
           if not files:
-              raise SystemExit("No translation JSON files found.")
+              errors.append("Không tìm thấy file JSON trong translations/")
 
           for path in files:
-              with path.open(encoding="utf-8") as file:
-                  data = json.load(file)
+              try:
+                  with path.open(encoding="utf-8") as file:
+                      data = json.load(file)
+              except Exception as exc:
+                  errors.append(f"{path}: JSON không hợp lệ: {exc}")
+                  continue
 
               if not isinstance(data, dict):
-                  raise SystemExit(f"{path}: root must be an object")
+                  errors.append(f"{path}: phần gốc phải là JSON object")
+                  continue
 
-              for key, value in data.items():
-                  if not isinstance(key, str) or not isinstance(value, str):
-                      raise SystemExit(
-                          f"{path}: every key and value must be a string"
+              name = path.name
+
+              if name.startswith("SkillTextTable_"):
+                  invalid = [
+                      key
+                      for key, value in data.items()
+                      if not isinstance(key, str)
+                      or not isinstance(value, str)
+                  ]
+
+                  if invalid:
+                      errors.append(
+                          f"{path}: skill phải có dạng string -> string; "
+                          f"key lỗi: {invalid[:10]}"
                       )
+                  else:
+                      print(f"OK: {path} ({len(data)} skill entries)")
 
-              print(f"OK: {path} ({len(data)} entries)")
+              elif name.startswith("TooltipText_"):
+                  invalid = []
+
+                  for key, value in data.items():
+                      if not isinstance(key, str):
+                          invalid.append(str(key))
+                          continue
+
+                      if not isinstance(value, dict):
+                          invalid.append(key)
+                          continue
+
+                      title = value.get("title")
+                      info = value.get("info")
+
+                      if not isinstance(title, str) or not isinstance(info, str):
+                          invalid.append(key)
+
+                  if invalid:
+                      errors.append(
+                          f"{path}: tooltip phải có title và info dạng chuỗi; "
+                          f"key lỗi: {invalid[:10]}"
+                      )
+                  else:
+                      print(f"OK: {path} ({len(data)} tooltip entries)")
+
+              else:
+                  errors.append(
+                      f"{path}: không nhận diện được loại file translation"
+                  )
+
+          if errors:
+              print("\nVALIDATION FAILED:", file=sys.stderr)
+
+              for error in errors:
+                  print(f"- {error}", file=sys.stderr)
+
+              raise SystemExit(1)
+
+          print("\nTất cả file translation JSON đều hợp lệ.")
           PY
