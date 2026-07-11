@@ -31,11 +31,19 @@ sed -i \
     -e '/^alias bd2open=/d' \
     -e '/^alias bd2exports=/d' \
     -e '/^alias bd2log=/d' \
+    -e '/^alias bd2tpull=/d' \
+    -e '/^alias bd2tedit=/d' \
+    -e '/^alias bd2tpush=/d' \
+    -e '/^alias bd2traw=/d' \
+    -e '/^alias bd2tactive=/d' \
+    -e '/^alias bd2tpath=/d' \
+    -e '/^alias bd2skill=/d' \
+    -e '/^alias bd2tooltip=/d' \
     "$BASHRC"
 
 cat >> "$BASHRC" <<'EOF'
 
-# BD2 shortcut aliases v1.3
+# BD2 shortcut aliases v1.5
 alias bd2clear="bd2 clear"
 alias bd2pull="bd2 pull"
 alias bd2raw="bd2 raw"
@@ -50,8 +58,20 @@ alias bd2path="bd2 path"
 alias bd2open="bd2 open"
 alias bd2exports="bd2 exports"
 alias bd2log="bd2 log"
+
+# Tooltip shortcuts
+alias bd2tpull="bd2 tooltip-pull"
+alias bd2tedit="bd2 tooltip-edit"
+alias bd2tpush="bd2 tooltip-push"
+alias bd2traw="bd2 tooltip-raw"
+alias bd2tactive="bd2 tooltip-active"
+alias bd2tpath="bd2 tooltip-path"
+
+# Automated workflows
+alias bd2skill="bd2 skill-workflow"
+alias bd2tooltip="bd2 tooltip-workflow"
 EOF
 
-echo "Đã cài BD2 Shortcuts v1.3"
+echo "Đã cài BD2 Shortcuts v1.5"
 echo 'Chạy: source "$HOME/.bashrc"'
 echo "Sau đó: bd2 help"

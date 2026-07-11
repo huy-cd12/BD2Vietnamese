@@ -10,6 +10,10 @@ CONFIG_DIR="$GAME/BepInEx/config/BD2Vietnamese"
 ACTIVE_FILE="$CONFIG_DIR/SkillTextTable_EN.json"
 RAW_FILE="$CONFIG_DIR/SkillTextTable_EN.raw.json"
 
+TOOLTIP_EXPORT_ROOT="$GAME/BepInEx/exports/BD2UITextCapture"
+TOOLTIP_ACTIVE_FILE="$CONFIG_DIR/TooltipText_EN.json"
+TOOLTIP_RAW_FILE="$CONFIG_DIR/TooltipText_EN.raw.json"
+
 LOG_FILE="$GAME/BepInEx/LogOutput.log"
 BACKUP_DIR="$HOME/BD2_translation_backup"
 
@@ -41,49 +45,128 @@ latest_capture() {
     printf '%s\n' "$latest"
 }
 
+latest_tooltip_capture() {
+    need_game
+
+    local latest
+    latest="$(
+        find "$TOOLTIP_EXPORT_ROOT" \
+            -maxdepth 1 \
+            -type f \
+            -name "ui_capture_*.json" \
+            -printf '%T@ %p\n' 2>/dev/null |
+        sort -nr |
+        head -n 1 |
+        cut -d' ' -f2-
+    )"
+
+    [[ -n "$latest" ]] ||
+        die "Chưa có UI capture. Mở popup tooltip rồi nhấn F7 một lần."
+
+    printf '%s\n' "$latest"
+}
+
+view_raw_file() {
+    local file="$1"
+    local label="$2"
+
+    [[ -f "$file" ]] || die "Không thấy file: $file"
+
+    echo
+    echo "============================================================"
+    echo "$label"
+    echo "============================================================"
+    echo
+
+    if command -v less >/dev/null 2>&1 && [[ -t 1 ]]; then
+        less -R "$file"
+    else
+        cat "$file"
+    fi
+
+    echo
+}
+
+cmd_skill_workflow() {
+    echo "=== 1/5 PULL SKILL ==="
+    cmd_pull
+
+    echo "=== 2/5 ĐỌC RAW TRƯỚC KHI EDIT ==="
+    view_raw_file "$RAW_FILE" "RAW SKILL TRƯỚC KHI EDIT"
+
+    echo "=== 3/5 EDIT RAW SKILL ==="
+    cmd_edit_raw
+
+    echo "=== 4/5 ĐỌC RAW SAU KHI EDIT ==="
+    view_raw_file "$RAW_FILE" "RAW SKILL SAU KHI EDIT"
+
+    echo "=== 5/5 PUSH VÀO GAME ==="
+    cmd_push
+
+    echo
+    echo "Hoàn tất skill. Quay lại game: F6 → đóng/mở lại cửa sổ skill."
+}
+
+cmd_tooltip_workflow() {
+    echo "=== 1/5 PULL TOOLTIP ==="
+    cmd_tooltip_pull
+
+    echo "=== 2/5 ĐỌC RAW TRƯỚC KHI EDIT ==="
+    view_raw_file "$TOOLTIP_RAW_FILE" "RAW TOOLTIP TRƯỚC KHI EDIT"
+
+    echo "=== 3/5 EDIT RAW TOOLTIP ==="
+    cmd_tooltip_edit
+
+    echo "=== 4/5 ĐỌC RAW SAU KHI EDIT ==="
+    view_raw_file "$TOOLTIP_RAW_FILE" "RAW TOOLTIP SAU KHI EDIT"
+
+    echo "=== 5/5 PUSH VÀO GAME ==="
+    cmd_tooltip_push
+
+    echo
+    echo "Hoàn tất tooltip. Quay lại game: F6 → đóng/mở lại popup."
+}
+
 show_help() {
     cat <<'EOF'
-QUY TRÌNH BD2
+TỰ ĐỘNG HÓA NHANH
 
-Trong game:
-  F11                   xóa dữ liệu capture trong RAM
-  F9                    bật/tắt capture
-  F6                    nạp lại bản dịch
+  bd2skill
+    pull skill → đọc trước → edit → đọc sau → push vào game
 
-Trong Terminal:
-  bd2clear               xóa toàn bộ thư mục capture cũ
-  bd2pull                lấy ID/text mới nhất vào file RAW
-  bd2raw                 xem file RAW
-  bd2editraw             sửa/dịch file RAW
-  bd2push                gộp RAW vào file game đang dùng
-  bd2active              xem file game đang dùng
-  bd2edit                sửa trực tiếp file game đang dùng
-  bd2check               kiểm tra cả RAW và file game
-  bd2status              xem trạng thái, đường dẫn và số lượng ID
-  bd2backup              sao lưu file game đang dùng
-  bd2path                hiện capture mới nhất
-  bd2open                mở thư mục bản dịch
-  bd2exports             mở thư mục capture
-  bd2log                 xem log plugin
+  bd2tooltip
+    pull tooltip → đọc trước → edit → đọc sau → push vào game
 
-HAI FILE SONG SONG
+Khi màn hình đọc mở bằng less:
+  q = thoát phần đọc và sang bước tiếp theo
 
-  SkillTextTable_EN.json
-    → file game đang đọc và hiển thị.
+SKILL THỦ CÔNG
 
-  SkillTextTable_EN.raw.json
-    → file làm việc/copy song song.
-    → game KHÔNG đọc file này.
+  bd2clear
+  bd2pull
+  bd2editraw
+  bd2push
+  bd2raw
+  bd2active
 
-QUY TRÌNH NGẮN
+TOOLTIP THỦ CÔNG
 
-  1. bd2clear
-  2. Trong game: F11 → F9 → mở mọi cấp skill → F9
-  3. bd2pull
-  4. bd2editraw
-  5. bd2check
-  6. bd2push
-  7. Trong game: F6 → đóng/mở lại skill
+  bd2tpull
+  bd2tedit
+  bd2tpush
+  bd2traw
+  bd2tactive
+  bd2tpath
+
+TRONG GAME
+
+  Skill:
+    F11 → F9 → mở +0 đến +5 → F9 → bd2skill → F6
+
+  Tooltip:
+    mở popup → F7 một lần → bd2tooltip → F6
+
+Không cần chạy bd2check trong hai quy trình tự động.
 EOF
 }
 
@@ -357,6 +440,197 @@ PY
     echo "Quay lại game: nhấn F6, đóng và mở lại trang skill."
 }
 
+
+cmd_tooltip_pull() {
+    need_game
+    mkdir -p "$CONFIG_DIR" "$BACKUP_DIR"
+
+    local latest
+    latest="$(latest_tooltip_capture)"
+
+    if [[ -f "$TOOLTIP_RAW_FILE" ]]; then
+        cp -a \
+            "$TOOLTIP_RAW_FILE" \
+            "$BACKUP_DIR/TooltipText_EN.raw_$(date +%Y%m%d_%H%M%S).json"
+    fi
+
+    python3 - "$latest" "$TOOLTIP_RAW_FILE" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+source_path = Path(sys.argv[1])
+output_path = Path(sys.argv[2])
+
+with source_path.open(encoding="utf-8") as file:
+    rows = json.load(file)
+
+if not isinstance(rows, list):
+    raise SystemExit("UI capture phải là JSON array.")
+
+groups = {}
+
+for row in rows:
+    if not isinstance(row, dict):
+        continue
+
+    path = row.get("path", "")
+    text = row.get("text", "")
+
+    if (
+        not isinstance(path, str)
+        or not isinstance(text, str)
+        or "/SkillInfoTooltip(Clone)/" not in path
+    ):
+        continue
+
+    field = None
+    base = None
+
+    for suffix, name in (
+        ("/Text - Title", "title"),
+        ("/Text - Info", "info"),
+    ):
+        if path.endswith(suffix):
+            base = path[: -len(suffix)]
+            field = name
+            break
+
+    if field is None or base is None:
+        continue
+
+    groups.setdefault(base, {})[field] = text
+
+result = {}
+
+for base in sorted(groups):
+    item = groups[base]
+    title = item.get("title", "").strip()
+    info = item.get("info", "")
+
+    if not title or not info:
+        continue
+
+    result[title] = {
+        "title": title,
+        "info": info,
+    }
+
+if not result:
+    raise SystemExit(
+        "Không tìm thấy tooltip nào trong capture. "
+        "Hãy giữ popup mở rồi nhấn F7."
+    )
+
+temporary_path = output_path.with_suffix(output_path.suffix + ".tmp")
+temporary_path.write_text(
+    json.dumps(result, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+os.replace(temporary_path, output_path)
+
+print(f"Đã lấy {len(result)} tooltip vào RAW:")
+print(output_path)
+PY
+
+    echo
+    echo "ACTIVE tooltip vẫn giữ nguyên:"
+    echo "$TOOLTIP_ACTIVE_FILE"
+}
+
+cmd_tooltip_edit() {
+    need_game
+    mkdir -p "$CONFIG_DIR"
+    [[ -f "$TOOLTIP_RAW_FILE" ]] || printf '{}\n' > "$TOOLTIP_RAW_FILE"
+    nano "$TOOLTIP_RAW_FILE"
+}
+
+cmd_tooltip_show_raw() {
+    need_game
+    [[ -f "$TOOLTIP_RAW_FILE" ]] ||
+        die "Chưa có RAW tooltip. Chạy: bd2tpull"
+    python3 -m json.tool "$TOOLTIP_RAW_FILE"
+}
+
+cmd_tooltip_show_active() {
+    need_game
+    [[ -f "$TOOLTIP_ACTIVE_FILE" ]] ||
+        die "Chưa có ACTIVE tooltip."
+    python3 -m json.tool "$TOOLTIP_ACTIVE_FILE"
+}
+
+cmd_tooltip_push() {
+    need_game
+    mkdir -p "$CONFIG_DIR" "$BACKUP_DIR"
+
+    [[ -f "$TOOLTIP_RAW_FILE" ]] ||
+        die "Chưa có RAW tooltip. Chạy: bd2tpull"
+
+    if [[ -f "$TOOLTIP_ACTIVE_FILE" ]]; then
+        local backup
+        backup="$BACKUP_DIR/TooltipText_EN_$(date +%Y%m%d_%H%M%S).json"
+        cp -a "$TOOLTIP_ACTIVE_FILE" "$backup"
+        echo "Đã sao lưu ACTIVE tooltip:"
+        echo "$backup"
+    fi
+
+    python3 - "$TOOLTIP_RAW_FILE" "$TOOLTIP_ACTIVE_FILE" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+raw_path = Path(sys.argv[1])
+active_path = Path(sys.argv[2])
+
+with raw_path.open(encoding="utf-8") as file:
+    raw = json.load(file)
+
+if active_path.exists():
+    with active_path.open(encoding="utf-8") as file:
+        active = json.load(file)
+else:
+    active = {}
+
+if not isinstance(raw, dict) or not isinstance(active, dict):
+    raise SystemExit("RAW và ACTIVE tooltip phải là JSON object.")
+
+for key, value in raw.items():
+    if not isinstance(key, str) or not isinstance(value, dict):
+        raise SystemExit("Mỗi tooltip phải có dạng key → object.")
+
+    title = value.get("title")
+    info = value.get("info")
+
+    if not isinstance(title, str) or not isinstance(info, str):
+        raise SystemExit(
+            f"Tooltip {key!r} phải có title và info dạng chuỗi."
+        )
+
+active.update(raw)
+
+ordered = {
+    key: active[key]
+    for key in sorted(active, key=str.casefold)
+}
+
+temporary_path = active_path.with_suffix(active_path.suffix + ".tmp")
+temporary_path.write_text(
+    json.dumps(ordered, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+os.replace(temporary_path, active_path)
+
+print(f"Đã gộp {len(raw)} tooltip RAW vào ACTIVE.")
+print(f"Tổng ACTIVE tooltip: {len(ordered)}.")
+print(active_path)
+PY
+
+    echo
+    echo "Quay lại game: F6 → đóng và mở lại popup."
+}
+
 cmd_status() {
     need_game
 
@@ -392,9 +666,46 @@ PY
     fi
 
     echo
-    echo "CAPTURE MỚI NHẤT:"
+    echo "TOOLTIP ACTIVE:"
+    echo "$TOOLTIP_ACTIVE_FILE"
+
+    if [[ -f "$TOOLTIP_ACTIVE_FILE" ]]; then
+        python3 - "$TOOLTIP_ACTIVE_FILE" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as file:
+    print("Số tooltip:", len(json.load(file)))
+PY
+    else
+        echo "Chưa có"
+    fi
+
+    echo
+    echo "TOOLTIP RAW:"
+    echo "$TOOLTIP_RAW_FILE"
+
+    if [[ -f "$TOOLTIP_RAW_FILE" ]]; then
+        python3 - "$TOOLTIP_RAW_FILE" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as file:
+    print("Số tooltip:", len(json.load(file)))
+PY
+    else
+        echo "Chưa có"
+    fi
+
+    echo
+    echo "CAPTURE SKILL MỚI NHẤT:"
 
     if latest_capture 2>/dev/null; then
+        :
+    else
+        echo "Chưa có"
+    fi
+
+    echo
+    echo "CAPTURE TOOLTIP MỚI NHẤT:"
+
+    if latest_tooltip_capture 2>/dev/null; then
         :
     else
         echo "Chưa có"
@@ -433,7 +744,7 @@ cmd_log() {
     [[ -f "$LOG_FILE" ]] || die "Không thấy LogOutput.log"
 
     grep -iE \
-        "BD2 Vietnamese Skill Text|BD2 Skill Text Exporter|Loaded.*Vietnamese|Patched methods|translation|replacement failed|could not patch|error|exception" \
+        "BD2 Vietnamese Skill Text|BD2 Skill Text Exporter|BD2 Vietnamese Tooltip|BD2 UI Text Capture|Loaded.*Vietnamese|Patched methods|tooltip translation|translation|replacement failed|could not patch|error|exception" \
         "$LOG_FILE" |
     tail -n 120
 }
@@ -453,6 +764,14 @@ case "${1:-help}" in
     open) cmd_open ;;
     exports) cmd_exports ;;
     log) cmd_log ;;
+    tooltip-pull|tpull) cmd_tooltip_pull ;;
+    tooltip-edit|tedit) cmd_tooltip_edit ;;
+    tooltip-push|tpush) cmd_tooltip_push ;;
+    tooltip-raw|traw) cmd_tooltip_show_raw ;;
+    tooltip-active|tactive) cmd_tooltip_show_active ;;
+    tooltip-path|tpath) latest_tooltip_capture ;;
+    skill-workflow|skill) cmd_skill_workflow ;;
+    tooltip-workflow|tooltip) cmd_tooltip_workflow ;;
     help|-h|--help) show_help ;;
     *) die "Lệnh không hợp lệ. Dùng: bd2 help" ;;
 esac
